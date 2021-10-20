@@ -1,0 +1,8 @@
+/go.sum
+/dist/
+/build/
+raspberrypi_pinout_status-telegraf-plugin.exe
+/.vscode/configurationCache.log
+/.vscode/dryrun.log
+/.vscode/targets.log
+/raspberrypi_pinout_status-telegraf-plugin
