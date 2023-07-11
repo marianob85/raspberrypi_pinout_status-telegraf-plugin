@@ -42,43 +42,43 @@ pipeline
 				'''
       		}
 		}
-
-		stage('Nexus upload') 
-		{
-			agent{ label "linux/u18.04/base" }
+		
+		stage('Release') {
 			when {
-                branch 'master'
-            }
+				buildingTag()
+			}
+			agent{ label "linux/u18.04/go:1.20.1" }
 			steps {
 				unstash 'dist'
 				sh '''
-					for f in build/dist/*.deb; do
+					export GOPATH=${PWD}
+					go install github.com/github-release/github-release@v0.10.0
+					bin/github-release release --user marianob85 --repo ${GITHUB_REPO} --tag ${TAG_NAME} --name ${TAG_NAME}
+					sleep 2m
+					for filename in build/dist/*; do
+						[ -e "$filename" ] || continue
+						basefilename=$(basename "$filename")
+						bin/github-release upload --user marianob85 --repo ${GITHUB_REPO} --tag ${TAG_NAME} --name ${basefilename} --file ${filename}
+					done
+				'''
+			}
+		}
+		
+		stage('Nexus upload') {
+			agent{ label "linux/u18.04/base" }
+			when {
+				buildingTag()
+			}
+			steps {
+				unstash 'dist'
+				sh '''
+					for f in  build/dist/*.deb; do
 						[ -e "$f" ] || continue
 						STATUS=$(curl -s -o /dev/null -w '%{http_code}' --insecure -u ${NEXUS_CREDS_USR}:${NEXUS_CREDS_PSW} -H "Content-Type: multipart/form-nedata" --data-binary @$f ${NEXUS_SERVER}/repository/ubuntu/)
 						if [ $STATUS -ne 201 ]; then
 							exit $STATUS
 						fi
 					done		
-				'''
-      		}
-		}
-		
-		stage('Release') {
-			when {
-				buildingTag()
-			}
-			agent{ label "linux/u18.04/go:1.15.13" }
-			steps {
-				unstash 'dist'
-				sh '''
-					export GOPATH=${PWD}
-					go get github.com/github-release/github-release
-					bin/github-release release --user marianob85 --repo ${GITHUB_REPO} --tag ${TAG_NAME} --name ${TAG_NAME}
-					for filename in build/dist/*; do
-						[ -e "$filename" ] || continue
-						basefilename=$(basename "$filename")
-						bin/github-release upload --user marianob85 --repo ${GITHUB_REPO} --tag ${TAG_NAME} --name ${basefilename} --file ${filename}
-					done
 				'''
 			}
 		}
